@@ -1,0 +1,134 @@
+--- src/components/AlunoPanel.tsx
++++ src/components/AlunoPanel.tsx
+@@ -2,3 +2,3 @@
+ import type { User } from '@supabase/supabase-js';
+-import { LogOut, Loader2, BookOpen, Clock, MessageSquare, Send, ChevronDown, ChevronUp } from 'lucide-react';
++import { LogOut, Loader2, BookOpen, Clock, MessageSquare, Send, ChevronDown, ChevronUp, UserCog, Edit2, Save, X } from 'lucide-react';
+ import { supabase } from '../lib/supabase';
+@@ -17,2 +17,7 @@
+   const [alunoData, setAlunoData] = useState<{ nome: string; ra: string; id: string } | null>(null);
++  
++  const [responsavelData, setResponsavelData] = useState<{ nome: string; email: string; telefone: string; ra_aluno: string } | null>(null);
++  const [editModo, setEditModo] = useState(false);
++  const [editEmail, setEditEmail] = useState('');
++  const [editTelefone, setEditTelefone] = useState('');
++  const [savingDados, setSavingDados] = useState(false);
++
+   const [notasData, setNotasData] = useState<Record<string, any> | null>(null);
+@@ -58,2 +63,16 @@
+ 
++          // Busca os dados do próprio responsável para exibição/edição
++          const { data: pRespData } = await supabase
++            .from('profiles')
++            .select('nome')
++            .eq('id', user.id)
++            .maybeSingle();
++
++          setResponsavelData({
++            nome: pRespData?.nome || 'Responsável',
++            email: respData.email || '',
++            telefone: respData.telefone || '',
++            ra_aluno: raToSearch
++          });
++
+         } else {
+@@ -148,2 +167,23 @@
+ 
++  const handleSaveDados = async () => {
++    setSavingDados(true);
++    try {
++      const { error: rErr } = await supabase.from('responsaveis').update({
++        email: editEmail,
++        telefone: editTelefone
++      }).eq('id', user.id);
++      if (rErr) throw rErr;
++
++      const { error: pErr } = await supabase.from('profiles').update({
++        email: editEmail
++      }).eq('id', user.id);
++      if (pErr) throw pErr;
++
++      setResponsavelData(prev => prev ? { ...prev, email: editEmail, telefone: editTelefone } : null);
++      setEditModo(false);
++    } catch (err: any) {
++      alert("Erro ao salvar dados: " + err.message);
++    } finally {
++      setSavingDados(false);
++    }
++  };
++
+   return (
+@@ -196,2 +236,73 @@
+           <>
++          {/* DADOS DO RESPONSÁVEL */}
++          {role === 'responsavel' && responsavelData && (
++            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
++              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
++                <div>
++                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
++                    <UserCog className="w-5 h-5 text-indigo-600" /> Meus Dados
++                  </h2>
++                  <p className="text-sm text-gray-500">Mantenha suas informações de contato atualizadas.</p>
++                </div>
++                {!editModo ? (
++                  <button onClick={() => { setEditEmail(responsavelData.email); setEditTelefone(responsavelData.telefone); setEditModo(true); }} className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors px-4 py-2 hover:bg-indigo-50 rounded-lg">
++                    <Edit2 className="w-4 h-4 mr-2" /> Editar
++                  </button>
++                ) : (
++                  <button onClick={() => setEditModo(false)} className="flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors px-4 py-2 hover:bg-gray-100 rounded-lg">
++                    <X className="w-4 h-4 mr-2" /> Cancelar
++                  </button>
++                )}
++              </div>
++              <div className="p-6">
++                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
++                  <div>
++                    <label className="block text-sm font-medium text-gray-500 mb-1">Nome Completo</label>
++                    <p className="text-gray-900 font-medium bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">{responsavelData.nome}</p>
++                    <p className="text-xs text-gray-400 mt-1">O nome não pode ser alterado por aqui.</p>
++                  </div>
++                  <div>
++                    <label className="block text-sm font-medium text-gray-500 mb-1">RA do Aluno Vinculado</label>
++                    <p className="text-gray-900 font-medium bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">{responsavelData.ra_aluno}</p>
++                    <p className="text-xs text-gray-400 mt-1">O RA é fixo e vinculado pela escola.</p>
++                  </div>
++                  <div>
++                    <label className="block text-sm font-medium text-gray-500 mb-1">E-mail de Contato</label>
++                    {editModo ? (
++                      <input 
++                        type="email" 
++                        value={editEmail} 
++                        onChange={e => setEditEmail(e.target.value)} 
++                        className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
++                      />
++                    ) : (
++                      <p className="text-gray-900 font-medium px-4 py-2 border border-transparent">{responsavelData.email || 'Não informado'}</p>
++                    )}
++                  </div>
++                  <div>
++                    <label className="block text-sm font-medium text-gray-500 mb-1">Telefone</label>
++                    {editModo ? (
++                      <input 
++                        type="text" 
++                        value={editTelefone} 
++                        onChange={e => setEditTelefone(e.target.value)} 
++                        className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
++                      />
++                    ) : (
++                      <p className="text-gray-900 font-medium px-4 py-2 border border-transparent">{responsavelData.telefone || 'Não informado'}</p>
++                    )}
++                  </div>
++                </div>
++                {editModo && (
++                  <div className="mt-6 flex justify-end">
++                    <button onClick={handleSaveDados} disabled={savingDados} className="flex items-center px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50">
++                      {savingDados ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
++                      {savingDados ? 'Salvando...' : 'Salvar Alterações'}
++                    </button>
++                  </div>
++                )}
++              </div>
++            </div>
++          )}
++
+           {/* BOLETIM */}

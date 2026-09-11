@@ -11,12 +11,12 @@ ProjetoIntegrador2/
 ├── backend/    # API REST e regras de negócio do servidor
 ├── frontend/   # Aplicação web em React 19 + Vite + Tailwind CSS
 ├── infra/      # Configurações de Docker, Caddy, VM e CI/CD
-└── backup/     # Snapshots e versões anteriores de referência (Supabase)
+└── backup/     # Versão anterior de referencia (Supabase)
 ```
 
 ---
 
-## 🚀 Como Executar o Frontend
+##  Como Executar o Frontend
 
 ```bash
 # Entrar no diretório do frontend
@@ -29,4 +29,3 @@ npm install
 npm run dev
 ```
 
-Consulte a documentação em [`infra/PLANEJAMENTO_DEVOPS.md`](./infra/PLANEJAMENTO_DEVOPS.md) para detalhes sobre a esteira de CI/CD e infraestrutura de produção.

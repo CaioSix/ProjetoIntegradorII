@@ -29,3 +29,16 @@ npm install
 npm run dev
 ```
 
+## Como Executar o Backend
+
+Veja [backend/README.md](backend/README.md) para detalhes (apps, decisões e próximos passos). Resumo:
+
+```bash
+cd backend
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python manage.py migrate
+python manage.py runserver
+```
+

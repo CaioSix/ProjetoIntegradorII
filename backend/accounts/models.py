@@ -16,6 +16,9 @@ class Role(models.TextChoices):
     ALUNO = "aluno", "Aluno"
 
 
+GESTOR_ROLES = {Role.ADMIN, Role.DIRETOR, Role.VICE_DIRETOR, Role.SECRETARIA}
+
+
 class User(AbstractUser):
 
     username = None

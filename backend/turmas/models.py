@@ -2,7 +2,6 @@ from django.db import models
 
 
 class Materia(models.TextChoices):
-    """Lista fixa herdada de `MATERIAS_DISPONIVEIS` (v1 frontend/types.ts)."""
 
     PORTUGUES = "lingua_portuguesa", "Língua Portuguesa"
     MATEMATICA = "matematica", "Matemática"

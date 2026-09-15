@@ -5,13 +5,6 @@ from turmas.models import Materia, Turma
 
 
 class Matricula(models.Model):
-    """Vínculo aluno+turma por ano letivo.
-
-    A v1 não tinha esse conceito de fato: `matricula_id` em `notas`/`faltas`
-    era, na prática, o próprio id do aluno (sem recorte por ano). Aqui
-    passa a existir de verdade, permitindo histórico entre anos letivos —
-    ponto identificado como dívida técnica a resolver na migração.
-    """
 
     aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE, related_name="matriculas")
     turma = models.ForeignKey(Turma, on_delete=models.PROTECT, related_name="matriculas")

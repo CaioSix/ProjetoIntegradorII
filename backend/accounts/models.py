@@ -17,11 +17,6 @@ class Role(models.TextChoices):
 
 
 class User(AbstractUser):
-    """Equivalente à tabela `profiles` da v1 (Supabase). Login por e-mail.
-
-    `is_active` (herdado de AbstractUser) assume o papel do antigo campo
-    `ativo` — não duplicamos o campo.
-    """
 
     username = None
     email = models.EmailField(unique=True)
@@ -69,9 +64,6 @@ class Responsavel(models.Model):
 
 
 class Aluno(models.Model):
-    """`ra_aluno` como vínculo alternativo em `responsaveis` (v1) foi
-    descartado aqui: o vínculo aluno<->responsável passa a existir só
-    nesta FK, eliminando a duplicidade/inconsistência da v1."""
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name="aluno")
     ra = models.CharField(max_length=30, unique=True)

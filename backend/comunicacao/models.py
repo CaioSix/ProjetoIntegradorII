@@ -5,9 +5,6 @@ from turmas.models import Turma
 
 
 class Aviso(models.Model):
-    """Substitui o JSON misto de `Anotacao.texto` da v1 (que guardava aviso
-    e anotação no mesmo campo). Um aviso é individual (destinatario_aluno)
-    ou por turma (destinatario_turma) — nunca os dois."""
 
     autor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="avisos_enviados")
     titulo = models.CharField(max_length=200)
@@ -37,8 +34,6 @@ class Aviso(models.Model):
 
 
 class Anotacao(models.Model):
-    """Uma anotação por linha (a v1 acumulava várias num único JSON por
-    aluno, indexado por data — aqui cada uma já tem seu `created_at`)."""
 
     aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE, related_name="anotacoes")
     autor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="anotacoes_feitas")
@@ -54,10 +49,6 @@ class Anotacao(models.Model):
 
 
 class Atividade(models.Model):
-    """Mantido como JSON por ora: a estrutura de `dados.tarefas` da v1
-    nunca teve um schema documentado. Revisar/normalizar quando os
-    requisitos reais do módulo de atividades forem levantados com o
-    usuário — não travar a migração nisso agora."""
 
     aluno = models.OneToOneField(Aluno, on_delete=models.CASCADE, related_name="atividades")
     dados = models.JSONField(default=dict, blank=True)

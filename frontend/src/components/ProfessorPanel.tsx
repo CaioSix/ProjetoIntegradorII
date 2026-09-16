@@ -1,9 +1,9 @@
 import React from 'react';
-import type { User } from '@supabase/supabase-js';
+import type { AuthUser } from '../types';
 import { LogOut } from 'lucide-react';
 
 interface Props {
-  user: User;
+  user: AuthUser;
   onLogout: () => void;
 }
 

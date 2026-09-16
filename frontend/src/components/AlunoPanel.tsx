@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
 import { LogOut, Loader2, BookOpen, Clock, MessageSquare, Send, ChevronDown, ChevronUp, UserCog, Edit2, Save, X, ClipboardList, CheckCircle, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { MATERIAS_DISPONIVEIS } from '../types';
+import { type AuthUser, MATERIAS_DISPONIVEIS } from '../types';
 
 interface Props {
-  user: User;
+  user: AuthUser;
   onLogout: () => void;
   role: string;
 }

@@ -9,6 +9,14 @@ export interface Profile {
   created_at: string;
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  nome: string;
+  role: Role;
+  is_active: boolean;
+}
+
 export interface Gestor extends Profile {
   departamento?: string;
 }

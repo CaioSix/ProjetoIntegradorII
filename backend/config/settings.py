@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "turmas",
     "academico",
     "comunicacao",
+    "migracao",
 ]
 
 MIDDLEWARE = [

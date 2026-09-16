@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LogOut, Loader2, BookOpen, Clock, MessageSquare, Send, ChevronDown, ChevronUp, UserCog, Edit2, Save, X, ClipboardList, CheckCircle, Bell } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { apiFetch } from '../services/api';
 import { type AuthUser, MATERIAS_DISPONIVEIS } from '../types';
 
 interface Props {
@@ -9,25 +9,45 @@ interface Props {
   role: string;
 }
 
+interface Matricula {
+  aluno: number;
+  aluno_nome: string;
+  aluno_ra: string;
+  notas: Array<{ materia_nome: string; b1: number | null; b2: number | null; b3: number | null; b4: number | null }>;
+  faltas: Array<{ materia_nome: string; b1: number | null; b2: number | null; b3: number | null; b4: number | null }>;
+}
+
+interface Aviso {
+  id: number;
+  titulo: string;
+  mensagem: string;
+  created_at: string;
+}
+
+interface Anotacao {
+  id: number;
+  texto: string;
+  resposta: string;
+  created_at: string;
+}
+
 export function AlunoPanel({ user, onLogout, role }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [alunoData, setAlunoData] = useState<{ nome: string; ra: string; id: string } | null>(null);
-  
-  const [responsavelData, setResponsavelData] = useState<{ nome: string; email: string; telefone: string; ra_aluno: string } | null>(null);
+  const [alunoData, setAlunoData] = useState<{ nome: string; ra: string } | null>(null);
+
+  const [responsavelData, setResponsavelData] = useState<{ nome: string; email: string; telefone: string } | null>(null);
   const [editModo, setEditModo] = useState(false);
-  const [editEmail, setEditEmail] = useState('');
   const [editTelefone, setEditTelefone] = useState('');
   const [savingDados, setSavingDados] = useState(false);
 
-  const [notasData, setNotasData] = useState<Record<string, any> | null>(null);
-  const [faltasData, setFaltasData] = useState<Record<string, any> | null>(null);
-  const [anotacoesData, setAnotacoesData] = useState<Record<string, any>>({});
-  const [avisosList, setAvisosList] = useState<any[]>([]);
-  const [atividadesData, setAtividadesData] = useState<Record<string, any>>({});
-  const [respostasEdit, setRespostasEdit] = useState<Record<string, string>>({});
-  const [savingResposta, setSavingResposta] = useState<string | null>(null);
-  const [anotacoesRowId, setAnotacoesRowId] = useState<string | null>(null);
+  const [notasData, setNotasData] = useState<Record<string, any>>({});
+  const [faltasData, setFaltasData] = useState<Record<string, any>>({});
+  const [anotacoesList, setAnotacoesList] = useState<Anotacao[]>([]);
+  const [avisosList, setAvisosList] = useState<Aviso[]>([]);
+  const [atividadesData] = useState<Record<string, any>>({});
+  const [respostasEdit, setRespostasEdit] = useState<Record<number, string>>({});
+  const [savingResposta, setSavingResposta] = useState<number | null>(null);
   const [isBoletimOpen, setIsBoletimOpen] = useState(false);
   const [isMeusDadosOpen, setIsMeusDadosOpen] = useState(false);
   const [isAtividadesOpen, setIsAtividadesOpen] = useState(true);
@@ -37,159 +57,54 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
     async function fetchData() {
       try {
         setLoading(true);
-        let alunoId = user.id;
-        let raToSearch = null;
+        setError(null);
+
+        const matriculasRes = await apiFetch('/matriculas/');
+        if (!matriculasRes.ok) throw new Error('Não foi possível carregar o boletim.');
+        const matriculas: Matricula[] = await matriculasRes.json();
+        const matricula = matriculas[0];
+
+        if (!matricula) {
+          throw new Error(
+            role === 'responsavel'
+              ? 'Nenhum aluno vinculado ao seu cadastro foi encontrado.'
+              : 'Matrícula não encontrada para o seu usuário.'
+          );
+        }
+
+        setAlunoData({ nome: matricula.aluno_nome, ra: matricula.aluno_ra });
+
+        const notas: Record<string, any> = {};
+        matricula.notas.forEach((n) => { notas[n.materia_nome] = n; });
+        setNotasData(notas);
+
+        const faltas: Record<string, any> = {};
+        matricula.faltas.forEach((f) => { faltas[f.materia_nome] = f; });
+        setFaltasData(faltas);
 
         if (role === 'responsavel') {
-          const { data: respData, error: respErr } = await supabase
-            .from('responsaveis')
-            .select('ra_aluno')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          if (respErr) throw new Error("Erro ao carregar dados do responsável: " + respErr.message);
-          
-          if (!respData) {
-             throw new Error("Perfil de responsável não encontrado no banco de dados. Isso geralmente acontece se você esqueceu de rodar os comandos de permissão (RLS) no SQL Editor.");
+          const respRes = await apiFetch('/me/responsavel/');
+          if (respRes.ok) {
+            const resp = await respRes.json();
+            setResponsavelData({ nome: user.nome, email: user.email, telefone: resp.telefone || '' });
           }
-
-          raToSearch = respData.ra_aluno;
-          
-          if (!raToSearch) {
-             throw new Error("O seu cadastro de Responsável não possui nenhum RA de aluno vinculado. Peça ao Administrador para atualizar o seu cadastro.");
-          }
-
-          const { data: alData, error: alErr } = await supabase
-            .from('alunos')
-            .select('id, ra')
-            .eq('ra', raToSearch)
-            .maybeSingle();
-            
-          if (alErr) throw new Error("Erro ao buscar dados do aluno: " + alErr.message);
-          
-          alunoId = alData.id;
-          
-          const { data: pData, error: pErr } = await supabase
-            .from('profiles')
-            .select('nome')
-            .eq('id', alunoId)
-            .maybeSingle();
-            
-          setAlunoData({ 
-             nome: pData?.nome || 'Aluno não encontrado', 
-             ra: alData.ra,
-             id: alunoId
-          });
-
-          // Busca os dados do próprio responsável para exibição/edição
-          const { data: pRespData } = await supabase
-            .from('profiles')
-            .select('nome')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          const { data: rRespData } = await supabase
-            .from('responsaveis')
-            .select('email, telefone')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          setResponsavelData({
-            nome: pRespData?.nome || 'Responsável',
-            email: rRespData?.email || '',
-            telefone: rRespData?.telefone || '',
-            ra_aluno: raToSearch
-          });
-
-        } else {
-           const { data: alData, error: alErr } = await supabase
-            .from('alunos')
-            .select('ra')
-            .eq('id', user.id)
-            .maybeSingle();
-            
-           const { data: pData, error: pErr } = await supabase
-            .from('profiles')
-            .select('nome')
-            .eq('id', user.id)
-            .maybeSingle();
-
-           setAlunoData({
-              nome: pData?.nome || 'Não definido',
-              ra: alData?.ra || 'Não definido',
-              id: user.id
-           });
         }
 
-        if (alunoId) {
-            const { data: nData, error: nErr } = await supabase
-              .from('notas')
-              .select('boletim')
-              .eq('matricula_id', alunoId)
-              .maybeSingle();
-              
-            if (!nErr && nData) {
-               setNotasData(nData.boletim);
-            }
-
-            const { data: fData, error: fErr } = await supabase
-              .from('faltas')
-              .select('registro_faltas')
-              .eq('matricula_id', alunoId)
-              .maybeSingle();
-              
-            if (!fErr && fData) {
-               setFaltasData(fData.registro_faltas);
-            }
-
-            // Fetch Anotacoes e Avisos
-            const { data: aDataList, error: aErr } = await supabase
-              .from('anotacoes')
-              .select('id, texto, created_at')
-              .eq('aluno_id', alunoId)
-              .order('created_at', { ascending: false });
-
-            if (!aErr && aDataList) {
-               let foundAnotacoes = false;
-               const avisos: any[] = [];
-               
-               aDataList.forEach(row => {
-                 const texto = row.texto as any;
-                 if (texto && (texto.tipo === 'aviso' || texto.tipo === 'aviso_turma')) {
-                   avisos.push({
-                     id: row.id,
-                     created_at: row.created_at,
-                     ...texto
-                   });
-                 } else if (texto && texto.anotacoes && !foundAnotacoes) {
-                   setAnotacoesRowId(row.id);
-                   setAnotacoesData(texto.anotacoes);
-                   const edits: Record<string, string> = {};
-                   Object.keys(texto.anotacoes).forEach(key => {
-                     edits[key] = texto.anotacoes[key].resposta || '';
-                   });
-                   setRespostasEdit(edits);
-                   foundAnotacoes = true;
-                 }
-               });
-               
-               setAvisosList(avisos);
-            }
-
-            // Fetch Atividades
-            const { data: ativData, error: ativErr } = await supabase
-              .from('atividades')
-              .select('id, dados')
-              .eq('aluno_id', alunoId)
-              .maybeSingle();
-
-            if (!ativErr && ativData) {
-               setAtividadesData(ativData.dados?.tarefas || {});
-            }
+        const avisosRes = await apiFetch('/avisos/');
+        if (avisosRes.ok) {
+          setAvisosList(await avisosRes.json());
         }
 
+        const anotacoesRes = await apiFetch('/anotacoes/');
+        if (anotacoesRes.ok) {
+          const anotacoes: Anotacao[] = await anotacoesRes.json();
+          setAnotacoesList(anotacoes);
+          const edits: Record<number, string> = {};
+          anotacoes.forEach((a) => { edits[a.id] = a.resposta || ''; });
+          setRespostasEdit(edits);
+        }
       } catch (err: any) {
-        console.error("Erro no painel:", err);
+        console.error('Erro no painel:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -197,56 +112,40 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
     }
 
     fetchData();
-  }, [user.id, role]);
+  }, [role]);
 
-  const handleSaveResposta = async (anotacaoKey: string) => {
-     if (!anotacoesRowId) return;
-
-     setSavingResposta(anotacaoKey);
-     try {
-       const updatedAnotacoes = { ...anotacoesData };
-       if (updatedAnotacoes[anotacaoKey]) {
-          updatedAnotacoes[anotacaoKey].resposta = respostasEdit[anotacaoKey] || '';
-       }
-
-       const payload = { anotacoes: updatedAnotacoes };
-
-       const { error } = await supabase
-          .from('anotacoes')
-          .update({ texto: payload })
-          .eq('id', anotacoesRowId);
-
-       if (error) throw error;
-       
-       setAnotacoesData(updatedAnotacoes);
-       alert("Resposta enviada com sucesso!");
-     } catch (err: any) {
-       console.error(err);
-       alert("Erro ao enviar resposta: " + err.message);
-     } finally {
-       setSavingResposta(null);
-     }
+  const handleSaveResposta = async (anotacaoId: number) => {
+    setSavingResposta(anotacaoId);
+    try {
+      const response = await apiFetch(`/anotacoes/${anotacaoId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ resposta: respostasEdit[anotacaoId] || '' }),
+      });
+      if (!response.ok) throw new Error('Não foi possível enviar a resposta.');
+      const atualizada: Anotacao = await response.json();
+      setAnotacoesList((prev) => prev.map((a) => (a.id === anotacaoId ? atualizada : a)));
+      alert('Resposta enviada com sucesso!');
+    } catch (err: any) {
+      alert('Erro ao enviar resposta: ' + err.message);
+    } finally {
+      setSavingResposta(null);
+    }
   };
 
   const handleSaveDados = async () => {
     setSavingDados(true);
     try {
-      const { error: rErr } = await supabase.from('responsaveis').update({
-        email: editEmail,
-        telefone: editTelefone
-      }).eq('id', user.id);
-      if (rErr) throw rErr;
+      const response = await apiFetch('/me/responsavel/', {
+        method: 'PATCH',
+        body: JSON.stringify({ telefone: editTelefone }),
+      });
+      if (!response.ok) throw new Error('Não foi possível salvar seus dados.');
 
-      const { error: pErr } = await supabase.from('profiles').update({
-        email: editEmail
-      }).eq('id', user.id);
-      if (pErr) throw pErr;
-
-      setResponsavelData(prev => prev ? { ...prev, email: editEmail, telefone: editTelefone } : null);
+      setResponsavelData((prev) => (prev ? { ...prev, telefone: editTelefone } : null));
       setEditModo(false);
-      alert("Seus dados foram atualizados com sucesso!");
+      alert('Seus dados foram atualizados com sucesso!');
     } catch (err: any) {
-      alert("Erro ao salvar dados: " + err.message);
+      alert('Erro ao salvar dados: ' + err.message);
     } finally {
       setSavingDados(false);
     }
@@ -288,7 +187,7 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
           {/* DADOS DO RESPONSÁVEL */}
           {role === 'responsavel' && responsavelData && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div 
+              <div
                 className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => setIsMeusDadosOpen(!isMeusDadosOpen)}
               >
@@ -301,7 +200,7 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
                 <div className="flex items-center gap-4">
                   {isMeusDadosOpen && (
                     !editModo ? (
-                      <button onClick={(e) => { e.stopPropagation(); setEditEmail(responsavelData.email); setEditTelefone(responsavelData.telefone); setEditModo(true); }} className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors px-4 py-2 hover:bg-indigo-50 rounded-lg">
+                      <button onClick={(e) => { e.stopPropagation(); setEditTelefone(responsavelData.telefone); setEditModo(true); }} className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors px-4 py-2 hover:bg-indigo-50 rounded-lg">
                         <Edit2 className="w-4 h-4 mr-2" /> Editar Contato
                       </button>
                     ) : (
@@ -315,7 +214,7 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
                   </button>
                 </div>
               </div>
-              
+
               {isMeusDadosOpen && (
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -325,30 +224,17 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
                       <p className="text-xs text-gray-400 mt-1">O nome não pode ser alterado por aqui.</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">RA do Aluno Vinculado</label>
-                      <p className="text-gray-900 font-medium bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">{responsavelData.ra_aluno}</p>
-                      <p className="text-xs text-gray-400 mt-1">O RA é fixo e vinculado pela escola.</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">E-mail de Contato</label>
-                      {editModo ? (
-                        <input 
-                          type="email" 
-                          value={editEmail} 
-                          onChange={e => setEditEmail(e.target.value)} 
-                          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 font-medium bg-white shadow-sm"
-                        />
-                      ) : (
-                        <p className="text-gray-900 font-medium px-4 py-2 border border-transparent">{responsavelData.email || 'Não informado'}</p>
-                      )}
+                      <label className="block text-sm font-medium text-gray-500 mb-1">E-mail de Login</label>
+                      <p className="text-gray-900 font-medium bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">{responsavelData.email}</p>
+                      <p className="text-xs text-gray-400 mt-1">O e-mail de login não pode ser alterado por aqui.</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Telefone</label>
                       {editModo ? (
-                        <input 
-                          type="text" 
-                          value={editTelefone} 
-                          onChange={e => setEditTelefone(e.target.value)} 
+                        <input
+                          type="text"
+                          value={editTelefone}
+                          onChange={e => setEditTelefone(e.target.value)}
                           className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 font-medium bg-white shadow-sm"
                         />
                       ) : (
@@ -372,7 +258,7 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
           {/* AVISOS RECENTES */}
           {avisosList.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-               <div 
+               <div
                   className="p-6 border-b border-gray-100 flex items-center justify-between bg-amber-50/50 cursor-pointer hover:bg-amber-50 transition-colors"
                   onClick={() => setIsAvisosOpen(!isAvisosOpen)}
                >
@@ -389,14 +275,10 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
                     {isAvisosOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                  </button>
                </div>
-               
+
                {isAvisosOpen && (
                  <div className="p-6 bg-white space-y-4">
-                    {avisosList.filter(a => {
-                       // Ocultar avisos que são apenas para responsáveis se o usuário logado for aluno
-                       if (role === 'aluno' && a.enviarPara === 'responsavel') return false;
-                       return true;
-                    }).map(aviso => (
+                    {avisosList.map(aviso => (
                        <div key={aviso.id} className="border border-amber-100 bg-amber-50/30 rounded-lg p-5">
                           <div className="flex justify-between items-start mb-2">
                              <h4 className="font-semibold text-gray-900">{aviso.titulo}</h4>
@@ -415,7 +297,7 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
 
           {/* BOLETIM */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-             <div 
+             <div
                 className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => setIsBoletimOpen(!isBoletimOpen)}
              >
@@ -427,7 +309,7 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
                   {isBoletimOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                </button>
              </div>
-             
+
              {isBoletimOpen && (
                <div className="overflow-x-auto">
                  <table className="w-full text-sm text-left">
@@ -481,47 +363,46 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
                     <p className="text-sm text-gray-500">Acompanhe comunicados e responda aos professores.</p>
                  </div>
                </div>
-               
+
                <div className="p-6 divide-y divide-gray-100">
-                  {Object.keys(anotacoesData).length === 0 ? (
+                  {anotacoesList.length === 0 ? (
                      <p className="text-gray-500 text-center py-4">Nenhuma anotação registrada para este aluno.</p>
                   ) : (
-                     Object.keys(anotacoesData).map((key) => {
-                       const item = anotacoesData[key];
-                       return (
-                          <div key={key} className="py-6 first:pt-0 last:pb-0 space-y-4">
+                     anotacoesList.map((anotacao) => (
+                          <div key={anotacao.id} className="py-6 first:pt-0 last:pb-0 space-y-4">
                              <div className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100">
-                                <h4 className="font-medium text-indigo-900 mb-1 capitalize text-sm">{key.replace('_', ' ')}</h4>
-                                <p className="text-gray-800">{item.info}</p>
+                                <h4 className="font-medium text-indigo-900 mb-1 text-sm">
+                                  {new Date(anotacao.created_at).toLocaleDateString('pt-BR')}
+                                </h4>
+                                <p className="text-gray-800">{anotacao.texto}</p>
                              </div>
-                             
+
                              <div className="flex gap-3">
                                <input
                                   type="text"
                                   placeholder="Digite sua resposta..."
-                                  value={respostasEdit[key] || ''}
-                                  onChange={(e) => setRespostasEdit({ ...respostasEdit, [key]: e.target.value })}
+                                  value={respostasEdit[anotacao.id] || ''}
+                                  onChange={(e) => setRespostasEdit({ ...respostasEdit, [anotacao.id]: e.target.value })}
                                   className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                                />
-                               <button 
-                                  onClick={() => handleSaveResposta(key)}
-                                  disabled={savingResposta === key}
+                               <button
+                                  onClick={() => handleSaveResposta(anotacao.id)}
+                                  disabled={savingResposta === anotacao.id}
                                   className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm font-medium"
                                >
-                                  {savingResposta === key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                                  {savingResposta === key ? 'Enviando...' : 'Responder'}
+                                  {savingResposta === anotacao.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                                  {savingResposta === anotacao.id ? 'Enviando...' : 'Responder'}
                                </button>
                              </div>
 
-                             {item.resposta && (
+                             {anotacao.resposta && (
                                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                   <span className="text-xs font-semibold text-gray-500 uppercase">Resposta:</span>
-                                  <p className="text-gray-700 text-sm mt-1">{item.resposta}</p>
+                                  <p className="text-gray-700 text-sm mt-1">{anotacao.resposta}</p>
                                </div>
                              )}
                           </div>
-                       )
-                     })
+                     ))
                   )}
                </div>
             </div>
@@ -529,7 +410,7 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
 
           {/* ATIVIDADES */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-             <div 
+             <div
                 className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => setIsAtividadesOpen(!isAtividadesOpen)}
              >
@@ -543,7 +424,7 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
                   {isAtividadesOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                </button>
              </div>
-             
+
              {isAtividadesOpen && (
                <div className="p-6 divide-y divide-gray-100">
                   {Object.keys(atividadesData).length === 0 ? (
@@ -560,7 +441,7 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
                               </div>
                               <p className="text-gray-600 text-sm mb-2">{atividade.descricao}</p>
                               <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                                 <Clock className="w-4 h-4 text-amber-500" /> 
+                                 <Clock className="w-4 h-4 text-amber-500" />
                                  Entrega: <span className="font-medium text-gray-700">{atividade.data_entrega ? new Date(atividade.data_entrega).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'Sem prazo'}</span>
                               </div>
                            </div>

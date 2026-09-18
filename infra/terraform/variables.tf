@@ -7,7 +7,7 @@ variable "location" {
 variable "project_name" {
   type        = string
   description = "Prefixo dos recursos para identificação"
-  default     = "projetoPilotCaio"
+  default     = "PI2ControleEscolar"
 }
 
 variable "vm_size" {

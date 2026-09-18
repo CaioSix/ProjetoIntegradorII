@@ -1,10 +1,8 @@
-# 1. Grupo de Recursos (Container onde todos os recursos do projeto residem)
 resource "azurerm_resource_group" "rg" {
   name     = "rg-${var.project_name}"
   location = var.location
 }
 
-# 2. Rede Virtual (VNet) e Sub-rede
 resource "azurerm_virtual_network" "vnet" {
   name                = "vnet-${var.project_name}"
   address_space       = ["10.0.0.0/16"]
@@ -20,7 +18,6 @@ resource "azurerm_subnet" "subnet" {
   depends_on           = [azurerm_virtual_network.vnet]
 }
 
-# 3. Endereço de IP Público (Standard SKU é a única permitida hoje pela Azure)
 resource "azurerm_public_ip" "pip" {
   name                = "pip-${var.project_name}"
   location            = azurerm_resource_group.rg.location
@@ -30,7 +27,6 @@ resource "azurerm_public_ip" "pip" {
   depends_on          = [azurerm_resource_group.rg]
 }
 
-# 4. Grupo de Segurança de Rede (Firewall NSG liberando SSH 22, HTTP 80 e HTTPS 443)
 resource "azurerm_network_security_group" "nsg" {
   name                = "nsg-${var.project_name}"
   location            = azurerm_resource_group.rg.location
@@ -73,7 +69,6 @@ resource "azurerm_network_security_group" "nsg" {
   }
 }
 
-# 5. Interface de Rede Virtual (Placa de Rede)
 resource "azurerm_network_interface" "nic" {
   name                = "nic-${var.project_name}"
   location            = azurerm_resource_group.rg.location
@@ -87,13 +82,11 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
-# Associa as regras de firewall (NSG) à placa de rede
 resource "azurerm_network_interface_security_group_association" "nic_nsg" {
   network_interface_id      = azurerm_network_interface.nic.id
   network_security_group_id = azurerm_network_security_group.nsg.id
 }
 
-# 6. Máquina Virtual Linux (Ubuntu 22.04 LTS)
 resource "azurerm_linux_virtual_machine" "vm" {
   name                = "vm-${var.project_name}"
   resource_group_name = azurerm_resource_group.rg.name

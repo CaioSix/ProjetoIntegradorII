@@ -12,3 +12,9 @@ output "resource_group_name" {
   value       = azurerm_resource_group.rg.name
   description = "Nome do Grupo de Recursos criado no Azure"
 }
+
+output "app_url" {
+  value       = var.domain != "" ? "https://${var.domain}" : "http://${azurerm_linux_virtual_machine.vm.public_ip_address}"
+  description = "URL para acessar a aplicação web no navegador"
+}
+

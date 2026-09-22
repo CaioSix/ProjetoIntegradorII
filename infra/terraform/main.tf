@@ -114,4 +114,11 @@ resource "azurerm_linux_virtual_machine" "vm" {
     sku       = "22_04-lts-arm64"
     version   = "latest"
   }
+
+  custom_data = base64encode(templatefile("${path.module}/userdata.tftpl", {
+    admin_username = var.admin_username
+    docker_image   = var.docker_image
+    domain         = var.domain
+  }))
 }
+

@@ -1,0 +1,76 @@
+#!/bin/bash
+set -euo pipefail
+
+# Redireciona a saída para log detalhado
+exec > >(tee -a /var/log/userdata.log) 2>&1
+echo "=== [$(date)] Iniciando provisionamento via Cloud-Init / Userdata ==="
+
+# 1. Atualizar repositórios do sistema e instalar Docker + Docker Compose plugin
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y ca-certificates curl gnupg lsb-release docker.io docker-compose-v2
+
+# 2. Habilitar e iniciar serviço do Docker
+systemctl enable --now docker
+
+# 3. Adicionar o usuário ao grupo docker (evita uso de sudo para gerenciar containers)
+usermod -aG docker ${admin_username}
+
+# 4. Criar diretório da aplicação
+APP_DIR="/home/${admin_username}/app"
+mkdir -p "$APP_DIR"
+
+# 5. Criar arquivo de configuração do Caddy (Caddyfile)
+cat << 'EOF' > "$APP_DIR/Caddyfile"
+%{ if domain != "" ~}
+${domain} {
+    reverse_proxy frontend:80
+}
+%{ else ~}
+:80 {
+    reverse_proxy frontend:80
+}
+%{ endif ~}
+EOF
+
+# 6. Criar arquivo de orquestração do Docker Compose
+cat << 'EOF' > "$APP_DIR/docker-compose.yml"
+services:
+  caddy:
+    image: caddy:alpine
+    container_name: caddy-gateway
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+  frontend:
+    image: ${docker_image}
+    container_name: frontend
+    restart: always
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower-auto-deploy
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 60 --cleanup
+
+volumes:
+  caddy_data:
+  caddy_config:
+EOF
+
+# 7. Ajustar permissões da pasta para o usuário não-root
+chown -R ${admin_username}:${admin_username} "$APP_DIR"
+
+# 8. Inicializar os containers com Docker Compose
+cd "$APP_DIR"
+docker compose up -d || true
+
+echo "=== [$(date)] Provisionamento concluído com sucesso ==="

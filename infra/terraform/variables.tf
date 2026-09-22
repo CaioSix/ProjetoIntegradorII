@@ -27,3 +27,16 @@ variable "ssh_public_key_path" {
   description = "Caminho da chave pública SSH no seu computador"
   default     = "~/.ssh/id_rsa.pub"
 }
+
+variable "docker_image" {
+  type        = string
+  description = "Nome e tag da imagem Docker do frontend no Docker Hub"
+  default     = "caiohenriquecal/projetointegrador2:latest"
+}
+
+variable "domain" {
+  type        = string
+  description = "Domínio para emissão automática de certificado SSL via Caddy (ex: meuescolar.duckdns.org ou nip.io). Deixe vazio para usar apenas HTTP no IP da VM."
+  default     = ""
+}
+

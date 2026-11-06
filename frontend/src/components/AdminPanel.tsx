@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { faro, trackPageView } from '../lib/faro';
 import { createClient } from '@supabase/supabase-js';
 import type { User } from '@supabase/supabase-js';
 import { LogOut, Users, BookOpen, Plus, Loader2, Search, UserCircle, Shield, GraduationCap, CheckSquare, FileText, Bell, Edit, History, Clock } from 'lucide-react';
@@ -49,6 +50,16 @@ export function AdminPanel({ user, onLogout }: Props) {
   const [turmasSubTab, setTurmasSubTab] = useState<'alunos' | 'professores'>('alunos');
   const [selectedTurma, setSelectedTurma] = useState<string | null>(null);
   const [expandedAlunoId, setExpandedAlunoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'usuarios') {
+      trackPageView('Admin - Gestão de Usuários');
+    } else if (selectedTurma) {
+      trackPageView(`Admin - Turma ${selectedTurma}`);
+    } else {
+      trackPageView('Admin - Gestão de Turmas');
+    }
+  }, [activeTab, selectedTurma]);
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);

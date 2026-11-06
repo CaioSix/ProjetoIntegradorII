@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { faro, trackPageView } from '../lib/faro';
 import type { User } from '@supabase/supabase-js';
 import { Loader2, LogOut } from 'lucide-react';
 import { AdminPanel } from './AdminPanel';
@@ -29,11 +30,15 @@ export function Dashboard({ user }: DashboardProps) {
         
         if (data) {
           setRole(data.role as Role);
+          if (data.role === 'professor') {
+            trackPageView('Portal do Professor');
+          }
         } else {
           setError("Perfil não encontrado. Você precisa cadastrar sua conta como Administrador no banco de dados.");
         }
       } catch (err: any) {
         console.error("Erro ao buscar perfil:", err);
+        faro.api?.pushError(err instanceof Error ? err : new Error(String(err?.message || err)));
         setError("Não foi possível carregar o seu perfil. " + err.message);
       } finally {
         setLoading(false);

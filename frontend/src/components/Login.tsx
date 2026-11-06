@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { faro, trackPageView } from '../lib/faro';
 import { Loader2 } from 'lucide-react';
 
 export function Login() {
@@ -9,6 +10,10 @@ export function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackPageView(isSignUp ? 'Tela de Cadastro' : 'Tela de Login');
+  }, [isSignUp]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +37,8 @@ export function Login() {
         if (error) throw error;
       }
     } catch (err: any) {
+      console.error('Erro na autenticação:', err);
+      faro.api?.pushError(err instanceof Error ? err : new Error(String(err?.message || err)));
       setError(err.message || 'Ocorreu um erro na autenticação.');
     } finally {
       setLoading(false);

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { LogOut, Loader2, BookOpen, Clock, MessageSquare, Send, ChevronDown, ChevronUp, UserCog, Edit2, Save, X, ClipboardList, CheckCircle, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { faro, trackPageView } from '../lib/faro';
 import { MATERIAS_DISPONIVEIS } from '../types';
 
 interface Props {
@@ -33,6 +34,16 @@ export function AlunoPanel({ user, onLogout, role }: Props) {
   const [isMeusDadosOpen, setIsMeusDadosOpen] = useState(false);
   const [isAtividadesOpen, setIsAtividadesOpen] = useState(true);
   const [isAvisosOpen, setIsAvisosOpen] = useState(true);
+
+  useEffect(() => {
+    if (isBoletimOpen) {
+      trackPageView('Boletim de Notas e Faltas');
+    } else if (role === 'responsavel') {
+      trackPageView('Portal do Responsável');
+    } else {
+      trackPageView('Portal do Aluno');
+    }
+  }, [role, isBoletimOpen]);
 
   useEffect(() => {
     async function fetchData() {

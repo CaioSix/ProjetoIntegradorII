@@ -243,6 +243,125 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "id": 8,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 16,
+        "minVizWidth": 75,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "title": "Páginas / Telas Mais Visitadas",
+      "type": "bargauge",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum by (view_name) (count_over_time({app=\"boletim-web-frontend\"} | logfmt | view_name != \"\" [$__range]))",
+          "legendFormat": "{{view_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "red",
+            "mode": "fixed"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "id": 9,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 16,
+        "minVizWidth": 75,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "title": "Erros por Página / Tela",
+      "type": "bargauge",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum by (view_name) (count_over_time({app=\"boletim-web-frontend\"} |~ \"kind=exception|level=error\" | logfmt | view_name != \"\" [$__range]))",
+          "legendFormat": "{{view_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
           "custom": {
             "drawStyle": "bars",
             "fillOpacity": 80,
@@ -259,7 +378,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 4
+        "y": 11
       },
       "id": 5,
       "options": {
@@ -307,7 +426,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 4
+        "y": 11
       },
       "id": 6,
       "options": {
@@ -342,7 +461,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 19
       },
       "id": 7,
       "options": {
@@ -386,5 +505,5 @@
   },
   "title": "Boletim Web - Observabilidade Frontend (Grafana Faro & Supabase)",
   "uid": "boletim-web-faro",
-  "version": 1
+  "version": 3
 }

@@ -24,6 +24,7 @@ resource "azurerm_public_ip" "pip" {
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
   sku                 = "Standard"
+  domain_name_label   = lower(var.dns_label)
   depends_on          = [azurerm_resource_group.rg]
 }
 
@@ -116,9 +117,12 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 
   custom_data = base64encode(templatefile("${path.module}/userdata.tftpl", {
-    admin_username = var.admin_username
-    docker_image   = var.docker_image
-    domain         = var.domain
+    admin_username         = var.admin_username
+    docker_image           = var.docker_image
+    domain                 = var.domain != "" ? var.domain : azurerm_public_ip.pip.fqdn
+    grafana_admin_password = var.grafana_admin_password
   }))
+
+
 }
 

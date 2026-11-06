@@ -36,7 +36,19 @@ variable "docker_image" {
 
 variable "domain" {
   type        = string
-  description = "Domínio para emissão automática de certificado SSL via Caddy (ex: meuescolar.duckdns.org ou nip.io). Deixe vazio para usar apenas HTTP no IP da VM."
+  description = "Domínio personalizado opcional (ex: meuescolar.duckdns.org). Se vazio, usa o DNS automático do Azure."
   default     = ""
+}
+
+variable "dns_label" {
+  type        = string
+  description = "Prefixo DNS público automático no Azure (gerará <dns_label>.canadacentral.cloudapp.azure.com)"
+  default     = "boletimweb-pi2"
+}
+
+variable "grafana_admin_password" {
+  type        = string
+  description = "Senha do grafana"
+  default     = "admin123"
 }
 

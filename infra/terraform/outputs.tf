@@ -14,7 +14,17 @@ output "resource_group_name" {
 }
 
 output "app_url" {
-  value       = var.domain != "" ? "https://${var.domain}" : "http://${azurerm_linux_virtual_machine.vm.public_ip_address}"
-  description = "URL para acessar a aplicação web no navegador"
+  value       = "https://${var.domain != "" ? var.domain : azurerm_public_ip.pip.fqdn}"
+  description = "URL com certificado SSL automático (HTTPS) para acessar a aplicação"
+}
+
+output "domain_fqdn" {
+  value       = azurerm_public_ip.pip.fqdn
+  description = "Nome de domínio público FQDN gerado nativamente pelo Azure"
+}
+
+output "grafana_url" {
+  value       = "https://${var.domain != "" ? var.domain : azurerm_public_ip.pip.fqdn}/grafana"
+  description = "URL para acessar o painel do Grafana"
 }
 

@@ -13,27 +13,85 @@ apt-get install -y ca-certificates curl gnupg lsb-release docker.io docker-compo
 # 2. Habilitar e iniciar serviço do Docker
 systemctl enable --now docker
 
-# 3. Adicionar o usuário ao grupo docker (evita uso de sudo para gerenciar containers)
-usermod -aG docker ${admin_username}
-
-# 4. Criar diretório da aplicação
-APP_DIR="/home/${admin_username}/app"
-mkdir -p "$APP_DIR"
+# 3. Adicionar o usuário ao grupo docker                                  
+usermod -aG docker ${admin_username}                                      
+                                                                          
+# 4. Criar diretórios da aplicação e provisionamento do Grafana           
+APP_DIR="/home/${admin_username}/app"                                     
+mkdir -p "$APP_DIR/grafana/provisioning/datasources"
 
 # 5. Criar arquivo de configuração do Caddy (Caddyfile)
 cat << 'EOF' > "$APP_DIR/Caddyfile"
 %{ if domain != "" ~}
 ${domain} {
-    reverse_proxy frontend:80
-}
 %{ else ~}
 :80 {
-    reverse_proxy frontend:80
-}
 %{ endif ~}
+    # Recebe a telemetria do Grafana Faro enviada pelo navegador          
+    handle /collect* {
+        reverse_proxy alloy:12347
+    }
+
+    # Painel do Grafana acessível em /grafana
+    handle /grafana* {
+        reverse_proxy grafana:3000
+    }
+
+    # Frontend React
+    handle {
+        reverse_proxy frontend:80
+    }
+}
 EOF
 
-# 6. Criar arquivo de orquestração do Docker Compose
+# 6. Criar configuração do Grafana Alloy (Receptor Faro -> Loki)
+cat << 'EOF' > "$APP_DIR/config.alloy" 
+logging {                                                                 
+  level  = "info"                                                         
+  format = "logfmt"                                                       
+}                                                                         
+                                                                          
+faro.receiver "frontend" {                                                
+  extra_log_labels = {
+    app = "boletim-web-frontend",
+  }
+
+  server {
+    listen_address           = "0.0.0.0"
+    listen_port              = 12347
+    cors_allowed_origins     = ["*"]
+    max_allowed_payload_size = "5MiB"
+  }
+
+  output {
+    logs   = [loki.write.default.receiver]
+    traces = [otelcol.exporter.logging.default.input]
+  }
+}
+
+otelcol.exporter.logging "default" {}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"                             
+  }
+}
+EOF
+
+# 7. Auto-provisionar o Loki como Data Source no Grafana
+cat << 'EOF' > "$APP_DIR/grafana/provisioning/datasources/datasources.yaml"
+apiVersion: 1
+datasources:
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100                                                 
+    isDefault: true
+    editable: true
+EOF
+
+# 8. Criar arquivo de orquestração do Docker Compose
 cat << 'EOF' > "$APP_DIR/docker-compose.yml"
 services:
   caddy:
@@ -53,6 +111,41 @@ services:
     container_name: frontend
     restart: always
 
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy 
+    restart: always
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+    command:
+      - run 
+      - /etc/alloy/config.alloy
+    depends_on: 
+      - loki
+
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: loki
+    restart: always
+    command: -config.file=/etc/loki/local-config.yaml 
+    volumes: 
+      - loki_data:/loki 
+
+  grafana: 
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    environment: 
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${grafana_admin_password}
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    volumes:
+      - grafana_data:/var/lib/grafana 
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - loki
+
   watchtower:
     image: containrrr/watchtower
     container_name: watchtower-auto-deploy
@@ -63,14 +156,16 @@ services:
 
 volumes:
   caddy_data:
-  caddy_config:
+  caddy_config: 
+  loki_data: 
+  grafana_data:
 EOF
 
-# 7. Ajustar permissões da pasta para o usuário não-root
+# 9. Ajustar permissões da pasta para o usuário não-root 
 chown -R ${admin_username}:${admin_username} "$APP_DIR"
 
-# 8. Inicializar os containers com Docker Compose
-cd "$APP_DIR"
+# 10. Inicializar os containers com Docker Compose
+cd "$APP_DIR" 
 docker compose up -d || true
 
-echo "=== [$(date)] Provisionamento concluído com sucesso ==="
+echo "=== [$(date)] Provisionamento concluído com sucesso ==="  

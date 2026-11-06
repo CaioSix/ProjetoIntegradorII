@@ -64,12 +64,9 @@ faro.receiver "frontend" {
   }
 
   output {
-    logs   = [loki.write.default.receiver]
-    traces = [otelcol.exporter.logging.default.input]
+    logs = [loki.write.default.receiver]
   }
 }
-
-otelcol.exporter.logging "default" {}
 
 loki.write "default" {
   endpoint {
@@ -150,6 +147,8 @@ services:
     image: containrrr/watchtower
     container_name: watchtower-auto-deploy
     restart: always
+    environment:
+      - DOCKER_API_VERSION=1.44
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --interval 60 --cleanup

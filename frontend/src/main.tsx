@@ -2,10 +2,10 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { initFaro } from './lib/faro.ts';
+// import { initFaro } from './lib/faro.ts';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 
-initFaro();
+// initFaro();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
